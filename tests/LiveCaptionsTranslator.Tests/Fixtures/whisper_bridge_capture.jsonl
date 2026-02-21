@@ -1,0 +1,6 @@
+{"text":"こん","isFinal":false,"sequence":1,"source":"whisper-bridge","timestamp":"2026-02-21T00:00:00.000Z","utteranceId":"utt-1"}
+{"text":"こんにちは","isFinal":false,"sequence":2,"source":"whisper-bridge","timestamp":"2026-02-21T00:00:00.100Z","utteranceId":"utt-1"}
+{"text":"こんにちは。","isFinal":true,"sequence":3,"source":"whisper-bridge","timestamp":"2026-02-21T00:00:00.200Z","utteranceId":"utt-1"}
+{"caption":"次の文","final":false,"seq":4,"source":"whisper-bridge","ts":1766630400000,"utterance_id":"utt-2"}
+{"caption":"次の文です","final":false,"seq":5,"source":"whisper-bridge","ts":1766630400200,"utterance_id":"utt-2"}
+{"text":"これは単発です。","isFinal":true,"sequence":6,"source":"whisper-bridge","timestamp":"2026-02-21T00:00:02.000Z","utteranceId":"utt-3"}

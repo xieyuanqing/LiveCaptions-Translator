@@ -20,6 +20,10 @@ namespace LiveCaptionsTranslator.models
         private int numContexts = 2;
         private int displaySentences = 1;
         private bool contextAware = false;
+        private AsrSourceMode asrSourceMode = AsrSourceMode.WindowsLiveCaptions;
+        private string whisperBridgeUrl = "ws://127.0.0.1:8765/captions";
+        private bool enablePartial = true;
+        private int reconnectIntervalMs = 1500;
 
         private string apiName;
         private string targetLanguage;
@@ -70,6 +74,53 @@ namespace LiveCaptionsTranslator.models
                 OnPropertyChanged("ContextAware");
             }
         }
+        [JsonConverter(typeof(JsonStringEnumConverter))]
+        public AsrSourceMode ASRSourceMode
+        {
+            get => asrSourceMode;
+            set
+            {
+                asrSourceMode = value;
+                OnPropertyChanged("ASRSourceMode");
+                OnPropertyChanged("IsWindowsLiveCaptionsMode");
+                OnPropertyChanged("IsWhisperBridgeMode");
+            }
+        }
+        public string WhisperBridgeUrl
+        {
+            get => whisperBridgeUrl;
+            set
+            {
+                whisperBridgeUrl = string.IsNullOrWhiteSpace(value)
+                    ? "ws://127.0.0.1:8765/captions"
+                    : value.Trim();
+                OnPropertyChanged("WhisperBridgeUrl");
+            }
+        }
+        public bool EnablePartial
+        {
+            get => enablePartial;
+            set
+            {
+                enablePartial = value;
+                OnPropertyChanged("EnablePartial");
+            }
+        }
+        public int ReconnectIntervalMs
+        {
+            get => reconnectIntervalMs;
+            set
+            {
+                reconnectIntervalMs = Math.Clamp(value, 300, 20000);
+                OnPropertyChanged("ReconnectIntervalMs");
+            }
+        }
+
+        [JsonIgnore]
+        public bool IsWindowsLiveCaptionsMode => ASRSourceMode == AsrSourceMode.WindowsLiveCaptions;
+
+        [JsonIgnore]
+        public bool IsWhisperBridgeMode => ASRSourceMode == AsrSourceMode.WhisperBridge;
 
         public string ApiName
         {
@@ -245,7 +296,7 @@ namespace LiveCaptionsTranslator.models
                     var options = new JsonSerializerOptions
                     {
                         WriteIndented = true,
-                        Converters = { new ConfigDictConverter() }
+                        Converters = { new ConfigDictConverter(), new JsonStringEnumConverter() }
                     };
                     setting = JsonSerializer.Deserialize<Setting>(fileStream, options) ?? new Setting();
                 }
@@ -265,6 +316,10 @@ namespace LiveCaptionsTranslator.models
                     setting.Configs[key] = [new TranslateAPIConfig()];
             }
 
+            if (string.IsNullOrWhiteSpace(setting.whisperBridgeUrl))
+                setting.whisperBridgeUrl = "ws://127.0.0.1:8765/captions";
+            setting.reconnectIntervalMs = Math.Clamp(setting.reconnectIntervalMs, 300, 20000);
+
             return setting;
         }
 
@@ -280,7 +335,7 @@ namespace LiveCaptionsTranslator.models
                 var options = new JsonSerializerOptions
                 {
                     WriteIndented = true,
-                    Converters = { new ConfigDictConverter() }
+                    Converters = { new ConfigDictConverter(), new JsonStringEnumConverter() }
                 };
                 JsonSerializer.Serialize(fileStream, this, options);
             }

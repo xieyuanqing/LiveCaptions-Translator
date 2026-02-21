@@ -1,0 +1,7 @@
+{"type":"config","useAudioWorklet":true}
+{"type":"transcript_update","status":"active_transcription","segments":[{"id":11,"speaker":1,"text":"partial","buffer":{"transcription":" text","diarization":"","translation":""}}]}
+{"type":"transcript_update","status":"active_transcription","segments":[{"id":11,"speaker":1,"text":"partial text done.","final":true,"buffer":{"transcription":"","diarization":"","translation":""}}]}
+{"type":"transcript_update","status":"completed","segments":[{"id":12,"speaker":1,"text":"status inferred final","buffer":{"transcription":"","diarization":"","translation":""}}]}
+{"text":"bridge fallback","isFinal":false,"sequence":50,"source":"bridge","utteranceId":"bridge-50"}
+{"type":"transcript_update","status":"active_transcription","segments":[{"id":13,"speaker":1,"text":"","buffer":{"transcription":"","diarization":"","translation":""}}]}
+{"type":"ready_to_stop"}

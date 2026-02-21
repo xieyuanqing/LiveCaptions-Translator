@@ -1,6 +1,4 @@
-﻿using System.Windows;
-
-using LiveCaptionsTranslator.utils;
+using System.Windows;
 
 namespace LiveCaptionsTranslator
 {
@@ -18,10 +16,12 @@ namespace LiveCaptionsTranslator
 
         private static void OnProcessExit(object sender, EventArgs e)
         {
-            if (Translator.Window != null)
+            try
             {
-                LiveCaptionsHandler.RestoreLiveCaptions(Translator.Window);
-                LiveCaptionsHandler.KillLiveCaptions(Translator.Window);
+                Translator.ShutdownAsync().GetAwaiter().GetResult();
+            }
+            catch
+            {
             }
         }
     }

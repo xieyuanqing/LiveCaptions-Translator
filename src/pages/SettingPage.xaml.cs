@@ -1,18 +1,24 @@
-﻿using System.Reflection;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using Wpf.Ui.Appearance;
-
-using LiveCaptionsTranslator.models;
-using LiveCaptionsTranslator.utils;
 using Wpf.Ui.Controls;
+
+using LiveCaptionsTranslator.apis;
+using LiveCaptionsTranslator.models;
 
 namespace LiveCaptionsTranslator
 {
     public partial class SettingPage : Page
     {
         private static SettingWindow? SettingWindow;
+
+        private static readonly List<KeyValuePair<AsrSourceMode, string>> AsrSourceModes =
+        [
+            new(AsrSourceMode.WindowsLiveCaptions, "Windows Live Captions"),
+            new(AsrSourceMode.WhisperBridge, "Whisper Bridge")
+        ];
 
         public SettingPage()
         {
@@ -24,33 +30,58 @@ namespace LiveCaptionsTranslator
             {
                 (App.Current.MainWindow as MainWindow)?.AutoHeightAdjust(maxHeight: (int)App.Current.MainWindow.MinHeight);
                 CheckForFirstUse();
+                UpdateLiveCaptionsButtonState();
             };
+
+            ASRSourceModeBox.ItemsSource = AsrSourceModes;
+            ASRSourceModeBox.DisplayMemberPath = "Value";
+            ASRSourceModeBox.SelectedValuePath = "Key";
+            ASRSourceModeBox.SelectedValue = Translator.Setting?.ASRSourceMode;
 
             TranslateAPIBox.ItemsSource = Translator.Setting?.Configs.Keys;
             TranslateAPIBox.SelectedIndex = 0;
 
             LoadAPISetting();
+            UpdateLiveCaptionsButtonState();
         }
 
         private void LiveCaptionsButton_click(object sender, RoutedEventArgs e)
         {
-            if (Translator.Window == null)
+            if (!Translator.IsWindowsSourceMode || !Translator.CanControlLiveCaptionsWindow)
                 return;
 
-            var button = sender as Wpf.Ui.Controls.Button;
-            var text = ButtonText.Text;
-
-            bool isHide = Translator.Window.Current.BoundingRectangle == Rect.Empty;
-            if (isHide)
+            bool isHidden = Translator.IsLiveCaptionsWindowHidden();
+            if (isHidden)
             {
-                LiveCaptionsHandler.RestoreLiveCaptions(Translator.Window);
-                ButtonText.Text = "Hide";
+                if (Translator.TryRestoreLiveCaptionsWindow())
+                    ButtonText.Text = "Hide";
             }
             else
             {
-                LiveCaptionsHandler.HideLiveCaptions(Translator.Window);
-                ButtonText.Text = "Show";
+                if (Translator.TryHideLiveCaptionsWindow())
+                    ButtonText.Text = "Show";
             }
+        }
+
+        private async void ASRSourceModeBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (ASRSourceModeBox.SelectedValue is not AsrSourceMode mode)
+                return;
+
+            await Translator.SwitchCaptionSourceAsync(mode);
+            UpdateLiveCaptionsButtonState();
+        }
+
+        private async void WhisperBridgeUrl_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (Translator.Setting?.ASRSourceMode == AsrSourceMode.WhisperBridge)
+                await Translator.RestartCaptionSourceAsync();
+        }
+
+        private async void ReconnectInterval_ValueChanged(object sender, NumberBoxValueChangedEventArgs args)
+        {
+            if (Translator.Setting?.ASRSourceMode == AsrSourceMode.WhisperBridge)
+                await Translator.RestartCaptionSourceAsync();
         }
 
         private void TranslateAPIBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -76,7 +107,7 @@ namespace LiveCaptionsTranslator
             else
             {
                 SettingWindow = new SettingWindow();
-                SettingWindow.Closed += (sender, args) => SettingWindow = null;
+                SettingWindow.Closed += (windowSender, args) => SettingWindow = null;
                 SettingWindow.Show();
             }
         }
@@ -157,8 +188,25 @@ namespace LiveCaptionsTranslator
 
         private void CheckForFirstUse()
         {
-            if (Translator.FirstUseFlag)
+            if (Translator.FirstUseFlag && Translator.IsWindowsSourceMode)
                 ButtonText.Text = "Hide";
+        }
+
+        private void UpdateLiveCaptionsButtonState()
+        {
+            if (!Translator.IsWindowsSourceMode)
+            {
+                ButtonText.Text = "N/A";
+                return;
+            }
+
+            if (!Translator.CanControlLiveCaptionsWindow)
+            {
+                ButtonText.Text = "Show";
+                return;
+            }
+
+            ButtonText.Text = Translator.IsLiveCaptionsWindowHidden() ? "Show" : "Hide";
         }
 
         public void LoadAPISetting()
@@ -167,7 +215,6 @@ namespace LiveCaptionsTranslator
             var languagesProp = configType.GetProperty(
                 "SupportedLanguages", BindingFlags.Public | BindingFlags.Static);
 
-            // Traverse base classes to find `SupportedLanguages`
             while (configType != null && languagesProp == null)
             {
                 configType = configType.BaseType;
@@ -183,7 +230,7 @@ namespace LiveCaptionsTranslator
 
             string targetLang = Translator.Setting.TargetLanguage;
             if (!supportedLanguages.ContainsKey(targetLang))
-                supportedLanguages[targetLang] = targetLang;    // add custom language to supported languages
+                supportedLanguages[targetLang] = targetLang;
             TargetLangBox.SelectedItem = targetLang;
         }
     }

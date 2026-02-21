@@ -52,9 +52,61 @@
                     Width="120"
                     Height="30"
                     Padding="11,4,11,4"
-                    Click="LiveCaptionsButton_click">
+                    Click="LiveCaptionsButton_click"
+                    IsEnabled="{Binding IsWindowsLiveCaptionsMode}">
                     <TextBlock x:Name="ButtonText" Text="Show" />
                 </ui:Button>
+            </StackPanel>
+
+            <StackPanel Margin="15,10,0,0" Orientation="Vertical">
+                <TextBlock Margin="2.5,0,0,5" Text="ASR Source" />
+                <ComboBox
+                    x:Name="ASRSourceModeBox"
+                    Width="170"
+                    Height="30"
+                    Padding="10,4,10,7"
+                    FontSize="13.3"
+                    SelectionChanged="ASRSourceModeBox_SelectionChanged" />
+            </StackPanel>
+
+            <StackPanel Margin="15,10,0,0" Orientation="Vertical">
+                <TextBlock Margin="2.5,0,0,5" Text="Whisper Bridge URL" />
+                <ui:TextBox
+                    Width="170"
+                    Height="30"
+                    Padding="10,4,10,7"
+                    FontSize="13.3"
+                    IsEnabled="{Binding IsWhisperBridgeMode}"
+                    LostFocus="WhisperBridgeUrl_LostFocus"
+                    Text="{Binding WhisperBridgeUrl, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
+            </StackPanel>
+
+            <StackPanel Margin="15,10,0,0" Orientation="Vertical">
+                <TextBlock Margin="2.5,0,0,5" Text="Enable Partial" />
+                <ui:ToggleSwitch
+                    Width="100"
+                    Height="30"
+                    Padding="10,4,10,7"
+                    IsChecked="{Binding EnablePartial, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                    IsEnabled="{Binding IsWhisperBridgeMode}"
+                    OffContent="Off"
+                    OnContent="On" />
+            </StackPanel>
+
+            <StackPanel Margin="15,10,0,0" Orientation="Vertical">
+                <TextBlock Margin="2.5,0,0,5" Text="Reconnect (ms)" />
+                <ui:NumberBox
+                    Width="170"
+                    Height="30"
+                    Padding="10,4,10,7"
+                    ClearButtonEnabled="False"
+                    FontSize="13.3"
+                    IsEnabled="{Binding IsWhisperBridgeMode}"
+                    Maximum="20000"
+                    Minimum="300"
+                    SpinButtonPlacementMode="Inline"
+                    Value="{Binding ReconnectIntervalMs, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                    ValueChanged="ReconnectInterval_ValueChanged" />
             </StackPanel>
 
             <StackPanel Margin="15,10,0,0" Orientation="Vertical">

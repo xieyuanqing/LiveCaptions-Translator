@@ -156,7 +156,8 @@ namespace LiveCaptionsTranslator
                 return;
 
             RootNavigation.Navigate(typeof(SettingPage));
-            LiveCaptionsHandler.RestoreLiveCaptions(Translator.Window);
+            if (Translator.IsWindowsSourceMode)
+                Translator.TryRestoreLiveCaptionsWindow();
 
             Dispatcher.InvokeAsync(() =>
             {

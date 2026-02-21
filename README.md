@@ -53,6 +53,15 @@ Windows' built-in LiveCaptions is easy to use, uses few resources, and has extre
   By enabling the ***Include microphone audio*** option in the setting of Windows LiveCaptions, you can achieve real-time speech translation!
   > ⚠️ **IMPORTANT:** You must change the source language in Windows LiveCaptions!
 
+- **🧠 Switchable ASR Source (MVP)**
+
+  The input speech-recognition path is now configurable in Settings:
+
+  - **Windows Live Captions**: original built-in path (UIA based).
+  - **Whisper Bridge**: connect to a local WebSocket bridge (recommended for WhisperLive-style streaming backends).
+
+  This keeps the existing translation APIs and UI/UX while allowing better ASR quality paths for Japanese livestream scenarios.
+
 - **🎨 Modern Interface**
 
   Easy-to-use and clean Fluent UI aligned with modern Windows aesthetics.
@@ -186,6 +195,42 @@ After launching Windows LiveCaptions, click the **⚙️ gear** icon to open the
 </div>
 
 After configuration, close Windows LiveCaptions and launch LiveCaptions Translator to start using it! 🎉
+
+### Optional: Use Whisper Bridge ASR
+
+If you want to use Whisper-family streaming ASR, run a local bridge first. The bridge should push text updates to a WebSocket endpoint (default in app: `ws://127.0.0.1:8765/captions`).
+
+Then in **Setting** page:
+
+1. Set **ASR Source** to `Whisper Bridge`.
+2. Set **Whisper Bridge URL** (default: `ws://127.0.0.1:8765/captions`).
+3. Optionally tune **Enable Partial** and **Reconnect (ms)**.
+
+#### Stable Bridge Protocol (v1)
+
+Preferred payload fields:
+
+- `text` (string)
+- `isFinal` (bool)
+- `sequence` (number)
+- `source` (string)
+- `timestamp` (ISO 8601 or unix ms/sec, optional)
+- `utteranceId` (string, optional)
+
+Example:
+
+```json
+{
+  "text": "こんにちは、配信を始めます",
+  "isFinal": false,
+  "sequence": 1024,
+  "source": "whisper-bridge",
+  "timestamp": "2026-02-21T12:34:56.789Z",
+  "utteranceId": "utt-9f8a"
+}
+```
+
+Compatibility note: the client has schema fallbacks for common alias keys (`caption`, `transcript`, `final`, `seq`, `is_final`, etc.), but bridge authors should still prefer the stable fields above.
 
 ## Project Stats
 
