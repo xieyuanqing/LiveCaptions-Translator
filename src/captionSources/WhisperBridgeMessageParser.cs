@@ -125,22 +125,22 @@ namespace LiveCaptionsTranslator.captionSources
                     break;
 
                 case JsonValueKind.String:
-                {
-                    string text = element.GetString()?.Trim() ?? string.Empty;
-                    if (string.IsNullOrWhiteSpace(text))
-                        return;
-
-                    fallbackSequence++;
-                    updates.Add(new CaptionUpdate
                     {
-                        Text = text,
-                        IsFinal = false,
-                        Sequence = fallbackSequence,
-                        Source = defaultSource,
-                        Timestamp = DateTimeOffset.UtcNow
-                    });
-                    break;
-                }
+                        string text = element.GetString()?.Trim() ?? string.Empty;
+                        if (string.IsNullOrWhiteSpace(text))
+                            return;
+
+                        fallbackSequence++;
+                        updates.Add(new CaptionUpdate
+                        {
+                            Text = text,
+                            IsFinal = false,
+                            Sequence = fallbackSequence,
+                            Source = defaultSource,
+                            Timestamp = DateTimeOffset.UtcNow
+                        });
+                        break;
+                    }
             }
         }
 
@@ -462,25 +462,25 @@ namespace LiveCaptionsTranslator.captionSources
                         break;
 
                     case JsonValueKind.String:
-                    {
-                        string text = prop.GetString()?.Trim() ?? string.Empty;
-                        if (bool.TryParse(text, out bool boolValue))
                         {
-                            value = boolValue;
-                            return true;
+                            string text = prop.GetString()?.Trim() ?? string.Empty;
+                            if (bool.TryParse(text, out bool boolValue))
+                            {
+                                value = boolValue;
+                                return true;
+                            }
+                            if (int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedInt))
+                            {
+                                value = parsedInt != 0;
+                                return true;
+                            }
+                            if (IsFinalStatus(text))
+                            {
+                                value = true;
+                                return true;
+                            }
+                            break;
                         }
-                        if (int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedInt))
-                        {
-                            value = parsedInt != 0;
-                            return true;
-                        }
-                        if (IsFinalStatus(text))
-                        {
-                            value = true;
-                            return true;
-                        }
-                        break;
-                    }
                 }
             }
 
@@ -506,15 +506,15 @@ namespace LiveCaptionsTranslator.captionSources
                         break;
 
                     case JsonValueKind.String:
-                    {
-                        string text = prop.GetString()?.Trim() ?? string.Empty;
-                        if (long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out parsedLong))
                         {
-                            value = parsedLong;
-                            return true;
+                            string text = prop.GetString()?.Trim() ?? string.Empty;
+                            if (long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out parsedLong))
+                            {
+                                value = parsedLong;
+                                return true;
+                            }
+                            break;
                         }
-                        break;
-                    }
                 }
             }
 
@@ -532,24 +532,24 @@ namespace LiveCaptionsTranslator.captionSources
                 switch (prop.ValueKind)
                 {
                     case JsonValueKind.String:
-                    {
-                        string text = prop.GetString()?.Trim() ?? string.Empty;
-                        if (DateTimeOffset.TryParse(
-                                text,
-                                CultureInfo.InvariantCulture,
-                                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
-                                out DateTimeOffset parsedDateTimeOffset))
                         {
-                            value = parsedDateTimeOffset;
-                            return true;
+                            string text = prop.GetString()?.Trim() ?? string.Empty;
+                            if (DateTimeOffset.TryParse(
+                                    text,
+                                    CultureInfo.InvariantCulture,
+                                    DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                                    out DateTimeOffset parsedDateTimeOffset))
+                            {
+                                value = parsedDateTimeOffset;
+                                return true;
+                            }
+                            if (long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out long unixValue))
+                            {
+                                value = UnixToDateTimeOffset(unixValue);
+                                return true;
+                            }
+                            break;
                         }
-                        if (long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out long unixValue))
-                        {
-                            value = UnixToDateTimeOffset(unixValue);
-                            return true;
-                        }
-                        break;
-                    }
 
                     case JsonValueKind.Number:
                         if (prop.TryGetInt64(out long unixNumber))
