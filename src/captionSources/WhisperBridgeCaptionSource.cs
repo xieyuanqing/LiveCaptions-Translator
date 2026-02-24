@@ -9,6 +9,7 @@ namespace LiveCaptionsTranslator.captionSources
     {
         private readonly Channel<CaptionUpdate> updates = Channel.CreateUnbounded<CaptionUpdate>();
         private readonly Uri bridgeUri;
+        private readonly string bridgeEndpoint;
         private readonly int reconnectIntervalMs;
 
         private CancellationTokenSource? loopCts;
@@ -17,10 +18,73 @@ namespace LiveCaptionsTranslator.captionSources
         private long fallbackSequence;
         private string generatedUtteranceId = CreateUtteranceId();
 
+        public event Action<BridgeConnectionStatus>? StatusChanged;
+
         public WhisperBridgeCaptionSource(string bridgeUrl, int reconnectIntervalMs)
         {
             bridgeUri = BuildBridgeUri(bridgeUrl);
+            bridgeEndpoint = bridgeUri.ToString();
             this.reconnectIntervalMs = Math.Max(300, reconnectIntervalMs);
+        }
+
+        public static bool TryNormalizeBridgeUrl(
+            string bridgeUrl,
+            out string normalizedBridgeUrl,
+            out string validationError)
+        {
+            try
+            {
+                normalizedBridgeUrl = BuildBridgeUri(bridgeUrl).ToString();
+                validationError = string.Empty;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                normalizedBridgeUrl = string.Empty;
+                validationError = ex.Message;
+                return false;
+            }
+        }
+
+        public static async Task<(bool Success, string ErrorMessage)> ProbeConnectionAsync(
+            string bridgeUrl,
+            int timeoutMs = 2500,
+            CancellationToken token = default)
+        {
+            Uri probeUri;
+            try
+            {
+                probeUri = BuildBridgeUri(bridgeUrl);
+            }
+            catch (Exception ex)
+            {
+                return (false, ex.Message);
+            }
+
+            using var probeSocket = new ClientWebSocket();
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+            timeoutCts.CancelAfter(Math.Max(800, timeoutMs));
+
+            try
+            {
+                await probeSocket.ConnectAsync(probeUri, timeoutCts.Token);
+                if (probeSocket.State == WebSocketState.Open)
+                {
+                    await probeSocket.CloseAsync(
+                        WebSocketCloseStatus.NormalClosure,
+                        "probe",
+                        CancellationToken.None);
+                }
+                return (true, string.Empty);
+            }
+            catch (OperationCanceledException) when (!token.IsCancellationRequested)
+            {
+                return (false, "Connection probe timed out.");
+            }
+            catch (Exception ex)
+            {
+                return (false, ex.Message);
+            }
         }
 
         public ChannelReader<CaptionUpdate> Updates => updates.Reader;
@@ -32,6 +96,7 @@ namespace LiveCaptionsTranslator.captionSources
 
             loopCts = CancellationTokenSource.CreateLinkedTokenSource(token);
             loopTask = Task.Run(() => ReceiveLoopAsync(loopCts.Token), CancellationToken.None);
+            EmitStatus(BridgeConnectionState.Connecting, "Bridge source starting.", 0);
             return Task.CompletedTask;
         }
 
@@ -55,25 +120,56 @@ namespace LiveCaptionsTranslator.captionSources
                 loopCts = null;
                 loopTask = null;
             }
+
+            EmitStatus(BridgeConnectionState.Stopped, "Bridge source stopped.", 0);
         }
 
         private async Task ReceiveLoopAsync(CancellationToken token)
         {
+            int reconnectAttempt = 0;
+
             while (!token.IsCancellationRequested)
             {
                 using var socket = new ClientWebSocket();
 
                 try
                 {
+                    reconnectAttempt++;
+                    EmitStatus(
+                        BridgeConnectionState.Connecting,
+                        $"Connecting to {bridgeEndpoint}",
+                        reconnectAttempt);
+
                     await socket.ConnectAsync(bridgeUri, token);
+                    EmitStatus(
+                        BridgeConnectionState.Connected,
+                        $"Connected to {bridgeEndpoint}",
+                        reconnectAttempt);
+
+                    reconnectAttempt = 0;
                     await ReceiveMessagesAsync(socket, token);
+
+                    if (!token.IsCancellationRequested)
+                    {
+                        EmitStatus(
+                            BridgeConnectionState.Reconnecting,
+                            $"Bridge disconnected. Retrying in {reconnectIntervalMs} ms.",
+                            reconnectAttempt + 1);
+                    }
                 }
                 catch (OperationCanceledException)
                 {
                     break;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    if (!token.IsCancellationRequested)
+                    {
+                        EmitStatus(
+                            BridgeConnectionState.Reconnecting,
+                            $"Connection error: {ex.Message}. Retrying in {reconnectIntervalMs} ms.",
+                            reconnectAttempt + 1);
+                    }
                 }
                 finally
                 {
@@ -89,8 +185,12 @@ namespace LiveCaptionsTranslator.captionSources
                     }
                 }
 
-                await Task.Delay(reconnectIntervalMs, token);
+                if (!token.IsCancellationRequested)
+                    await Task.Delay(reconnectIntervalMs, token);
             }
+
+            if (!token.IsCancellationRequested)
+                EmitStatus(BridgeConnectionState.Stopped, "Bridge source stopped.", 0);
         }
 
         private async Task ReceiveMessagesAsync(ClientWebSocket socket, CancellationToken token)
@@ -199,6 +299,24 @@ namespace LiveCaptionsTranslator.captionSources
         private static string CreateUtteranceId()
         {
             return "bridge-" + Guid.NewGuid().ToString("N");
+        }
+
+        private void EmitStatus(BridgeConnectionState state, string message, int attempt)
+        {
+            try
+            {
+                StatusChanged?.Invoke(new BridgeConnectionStatus
+                {
+                    State = state,
+                    Endpoint = bridgeEndpoint,
+                    Message = message,
+                    Attempt = Math.Max(0, attempt),
+                    UpdatedAt = DateTimeOffset.UtcNow
+                });
+            }
+            catch
+            {
+            }
         }
     }
 }

@@ -22,10 +22,12 @@ namespace LiveCaptionsTranslator
         private static readonly Channel<CaptionUpdate> captionUpdateBus = Channel.CreateUnbounded<CaptionUpdate>();
         private static readonly CancellationTokenSource runtimeCts = new();
         private static readonly SemaphoreSlim sourceSwitchLock = new(1, 1);
+        private static readonly object bridgeStatusLock = new();
 
         private static ICaptionSource? captionSource;
         private static CancellationTokenSource? sourcePumpCts;
         private static Task? sourcePumpTask;
+        private static BridgeConnectionStatus bridgeStatus = new();
 
         private static readonly LegacyWindowsCaptionAggregator windowsAggregator = new();
         private static readonly CaptionIncrementalAggregator whisperAggregator = new();
@@ -34,11 +36,20 @@ namespace LiveCaptionsTranslator
         public static Caption? Caption => caption;
         public static Setting? Setting => setting;
         public static AutomationElement? Window => (captionSource as WindowsLiveCaptionSource)?.Window;
+        public static BridgeConnectionStatus BridgeStatus
+        {
+            get
+            {
+                lock (bridgeStatusLock)
+                    return bridgeStatus;
+            }
+        }
 
         public static bool LogOnlyFlag { get; set; } = false;
         public static bool FirstUseFlag { get; set; } = false;
 
         public static event Action? TranslationLogged;
+        public static event Action<BridgeConnectionStatus>? BridgeStatusChanged;
 
         static Translator()
         {
@@ -47,6 +58,15 @@ namespace LiveCaptionsTranslator
 
             caption = Caption.GetInstance();
             setting = Setting.Load();
+
+            bridgeStatus = new BridgeConnectionStatus
+            {
+                State = BridgeConnectionState.Idle,
+                Endpoint = setting?.WhisperBridgeUrl ?? "ws://127.0.0.1:8765/captions",
+                Message = "Bridge source not started.",
+                Attempt = 0,
+                UpdatedAt = DateTimeOffset.UtcNow
+            };
 
             try
             {
@@ -62,7 +82,7 @@ namespace LiveCaptionsTranslator
         {
             if (Setting == null)
                 return;
-            await SwitchCaptionSourceInternalAsync(Setting.ASRSourceMode, forceRestart: true);
+            await SwitchCaptionSourceInternalAsync(AsrSourceMode.WhisperBridge, forceRestart: true);
         }
 
         public static async Task SwitchCaptionSourceAsync(AsrSourceMode mode)
@@ -70,18 +90,15 @@ namespace LiveCaptionsTranslator
             if (Setting == null)
                 return;
 
-            bool modeChanged = Setting.ASRSourceMode != mode;
-            if (modeChanged)
-                Setting.ASRSourceMode = mode;
-
-            await SwitchCaptionSourceInternalAsync(mode, forceRestart: modeChanged);
+            Setting.ASRSourceMode = AsrSourceMode.WhisperBridge;
+            await SwitchCaptionSourceInternalAsync(AsrSourceMode.WhisperBridge, forceRestart: true);
         }
 
         public static async Task RestartCaptionSourceAsync()
         {
             if (Setting == null)
                 return;
-            await SwitchCaptionSourceInternalAsync(Setting.ASRSourceMode, forceRestart: true);
+            await SwitchCaptionSourceInternalAsync(AsrSourceMode.WhisperBridge, forceRestart: true);
         }
 
         public static bool IsWindowsSourceMode =>
@@ -239,6 +256,8 @@ namespace LiveCaptionsTranslator
 
         private static async Task SwitchCaptionSourceInternalAsync(AsrSourceMode mode, bool forceRestart)
         {
+            mode = AsrSourceMode.WhisperBridge;
+
             await sourceSwitchLock.WaitAsync();
             try
             {
@@ -255,6 +274,9 @@ namespace LiveCaptionsTranslator
                     : new WhisperBridgeCaptionSource(Setting?.WhisperBridgeUrl ?? "ws://127.0.0.1:8765/captions",
                         Setting?.ReconnectIntervalMs ?? 1500);
 
+                if (source is WhisperBridgeCaptionSource whisperBridgeSource)
+                    whisperBridgeSource.StatusChanged += OnBridgeSourceStatusChanged;
+
                 captionSource = source;
                 await source.StartAsync(runtimeCts.Token);
                 StartSourcePump(source);
@@ -263,6 +285,15 @@ namespace LiveCaptionsTranslator
             }
             catch (Exception ex)
             {
+                UpdateBridgeStatus(new BridgeConnectionStatus
+                {
+                    State = BridgeConnectionState.Error,
+                    Endpoint = Setting?.WhisperBridgeUrl ?? "ws://127.0.0.1:8765/captions",
+                    Message = $"Caption source switch failed: {ex.Message}",
+                    Attempt = 0,
+                    UpdatedAt = DateTimeOffset.UtcNow
+                });
+
                 if (caption != null)
                     caption.DisplayTranslatedCaption = $"[WARNING] Caption source switch failed: {ex.Message}";
             }
@@ -295,9 +326,21 @@ namespace LiveCaptionsTranslator
 
             if (captionSource != null)
             {
+                if (captionSource is WhisperBridgeCaptionSource whisperBridgeSource)
+                    whisperBridgeSource.StatusChanged -= OnBridgeSourceStatusChanged;
+
                 await captionSource.StopAsync(runtimeCts.Token);
                 captionSource = null;
             }
+
+            UpdateBridgeStatus(new BridgeConnectionStatus
+            {
+                State = BridgeConnectionState.Stopped,
+                Endpoint = Setting?.WhisperBridgeUrl ?? "ws://127.0.0.1:8765/captions",
+                Message = "Bridge source stopped.",
+                Attempt = 0,
+                UpdatedAt = DateTimeOffset.UtcNow
+            });
         }
 
         private static void StartSourcePump(ICaptionSource source)
@@ -315,10 +358,32 @@ namespace LiveCaptionsTranslator
                 }
                 catch (Exception ex)
                 {
+                    UpdateBridgeStatus(new BridgeConnectionStatus
+                    {
+                        State = BridgeConnectionState.Error,
+                        Endpoint = Setting?.WhisperBridgeUrl ?? "ws://127.0.0.1:8765/captions",
+                        Message = $"Caption source disconnected: {ex.Message}",
+                        Attempt = 0,
+                        UpdatedAt = DateTimeOffset.UtcNow
+                    });
+
                     if (caption != null)
                         caption.DisplayTranslatedCaption = $"[WARNING] Caption source disconnected: {ex.Message}";
                 }
             }, sourcePumpCts.Token);
+        }
+
+        private static void OnBridgeSourceStatusChanged(BridgeConnectionStatus status)
+        {
+            UpdateBridgeStatus(status);
+        }
+
+        private static void UpdateBridgeStatus(BridgeConnectionStatus status)
+        {
+            lock (bridgeStatusLock)
+                bridgeStatus = status;
+
+            BridgeStatusChanged?.Invoke(status);
         }
 
         private static void ResetCaptionPipelineStates()

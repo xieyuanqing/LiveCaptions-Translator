@@ -47,26 +47,26 @@
                 Margin="20,10,20,10"
                 TextAlignment="Left"
                 TextWrapping="Wrap">
-                <Run Text="LiveCaptions Translator is based on Windows LiveCaptions." />
-                <Run Text="Before your first running, you need to configure it according to the following steps:&#x0A;" />
-                <Run Text="&#x0A;1. Open Windows LiveCaptions and follow the guide to download the necessary files for on-device speech recognition and language packs." />
-                <Run Text="&#x0A;2. Click the" />
-                <Run FontWeight="Bold" Text="⚙️ gear" />
-                <Run Text="icon in Windows LiveCaptions to open the settings menu, and select" />
-                <Run FontWeight="Bold" Text="&quot;Position &gt; Overlaid on screen&quot;" />
-                <Run Text=".&#x0A;3. Click the" />
-                <Run FontWeight="Bold" Text="&quot;Hide&quot;" />
-                <Run Text="button located in the setting page of LiveCaptions Translator to hide Windows LiveCaptions.&#x0A;" />
-                <Run Text="&#x0A;The program has automatically navigated to the setting page and opened Windows LiveCaptions." />
-                <Run Text="After completing the configuration, you can switch back to the main page and enjoy real-time audio translation.&#x0A;" />
+                <Run Text="LiveCaptions Translator now uses Whisper Bridge as the only caption input." />
+                <Run Text="Before your first run, complete the quick setup below:&#x0A;" />
+                <Run Text="&#x0A;1. Start your local ASR bridge service (for example WhisperLiveKit runtime)." />
+                <Run Text="&#x0A;2. Confirm the bridge WebSocket endpoint is reachable." />
+                <Run Text="&#x0A;3. In the setting page, fill" />
+                <Run FontWeight="Bold" Text=" Whisper Bridge URL " />
+                <Run Text="and click" />
+                <Run FontWeight="Bold" Text=" Apply" />
+                <Run Text="." />
+                <Run Text="&#x0A;4. When status shows" />
+                <Run FontWeight="Bold" Text=" Connected" />
+                <Run Text=", switch back to the Caption page to start translation.&#x0A;" />
+                <Run Text="&#x0A;Default endpoint: " />
+                <Run FontWeight="Bold" Text="ws://127.0.0.1:8765/captions" />
                 <Run Text="&#x0A;For more details, visit our wiki: " />
                 <Hyperlink NavigateUri="https://github.com/SakiRinn/LiveCaptions-Translator/wiki" RequestNavigate="Hyperlink_RequestNavigate">
                     https://github.com/SakiRinn/LiveCaptions-Translator/wiki
                 </Hyperlink>
                 <Run FontWeight="Bold" Text="&#x0A;&#x0A;Tip:" />
-                <Run Text="To change the" />
-                <Run FontWeight="DemiBold" TextDecorations="Underline" Text="Source Language" />
-                <Run Text=", please [Show] LiveCaptions on the setting page and do it in Windows LiveCaptions." />
+                <Run Text="Use the Reconnect button in the setting page after restarting bridge services." />
             </ui:TextBlock>
 
             <ui:Button
@@ -74,7 +74,7 @@
                 Padding="30,10,30,10"
                 HorizontalAlignment="Center"
                 Click="CloseButton_Click"
-                Content="I have fully understood and configured." />
+                Content="I have configured the bridge." />
         </StackPanel>
     </Grid>
 </ui:FluentWindow>

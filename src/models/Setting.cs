@@ -20,7 +20,7 @@ namespace LiveCaptionsTranslator.models
         private int numContexts = 2;
         private int displaySentences = 1;
         private bool contextAware = false;
-        private AsrSourceMode asrSourceMode = AsrSourceMode.WindowsLiveCaptions;
+        private AsrSourceMode asrSourceMode = AsrSourceMode.WhisperBridge;
         private string whisperBridgeUrl = "ws://127.0.0.1:8765/captions";
         private bool enablePartial = true;
         private int reconnectIntervalMs = 1500;
@@ -318,6 +318,7 @@ namespace LiveCaptionsTranslator.models
 
             if (string.IsNullOrWhiteSpace(setting.whisperBridgeUrl))
                 setting.whisperBridgeUrl = "ws://127.0.0.1:8765/captions";
+            setting.asrSourceMode = AsrSourceMode.WhisperBridge;
             setting.reconnectIntervalMs = Math.Clamp(setting.reconnectIntervalMs, 300, 20000);
 
             return setting;

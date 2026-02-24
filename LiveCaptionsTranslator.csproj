@@ -14,7 +14,7 @@
 		<IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
 
 		<Title>LiveCaptions Translator</Title>
-		<Description>A real-time speech translation tool based on Windows LiveCaptions.</Description>
+		<Description>A real-time subtitle translation tool using Whisper Bridge input.</Description>
 		<Copyright>Copyright (c) 2024 SakiRinn and other contributors</Copyright>
 		<Authors>SakiRinn</Authors>
 		<ApplicationIcon>src\LiveCaptions-Translator.ico</ApplicationIcon>

@@ -6,7 +6,7 @@
 
 <a href="https://trendshift.io/repositories/14278" target="_blank"><img src="https://trendshift.io/api/badge/repositories/14278" alt="SakiRinn%2FLiveCaptions-Translator | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 
-### *Real-time audio/speech translation tool based on Windows LiveCaptions*
+### *Real-time subtitle translation tool powered by Whisper Bridge input*
 
 [![Master Build](https://github.com/SakiRinn/LiveCaptions-Translator/actions/workflows/dotnet-build.yml/badge.svg?branch=master)](https://github.com/SakiRinn/LiveCaptions-Translator/actions/workflows/dotnet-build.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/SakiRinn/LiveCaptions-Translator?label=Latest&color=yellow)](https://github.com/SakiRinn/LiveCaptions-Translator/releases/latest)
@@ -20,11 +20,11 @@
 
 ## Overview
 
-**✨ LiveCaptions Translator = Windows LiveCaptions + Translate API ✨**
+**✨ LiveCaptions Translator = Whisper Bridge + Translate API ✨**
 
-This is a lightweight tool that seamlessly integrates translation APIs with Windows Live Captions, enabling real-time speech translation without requiring a Copilot+ PC.
+This is a lightweight tool that consumes captions from a local Whisper Bridge WebSocket and translates them in real time.
 
-Windows' built-in LiveCaptions is easy to use, uses few resources, and has extremely high recognition accuracy. If empowering it with the awesome translation capabilities of LLMs, you will get... possibly the best real-time translator available to date!
+ASR orchestration can stay in your external control frontend, while this app focuses on subtitle rendering, translation, overlay, and history.
 
 **🚀 Quick Start:** Download from [Releases](https://github.com/SakiRinn/LiveCaptions-Translator/releases) and start with a single click!
 
@@ -37,30 +37,17 @@ Windows' built-in LiveCaptions is easy to use, uses few resources, and has extre
 
 ## Features
 
-- **🔄 Seamless Integration**
+- **🔄 Bridge-first Integration**
 
-  Automatically invokes Windows LiveCaptions without opening separate windows. Provides a unified experience for real-time audio/speech translation.
+  Connects to a single Whisper Bridge endpoint and keeps translation/display pipeline stable.
 
-  After your first use, Windows LiveCaptions will be hidden by default. You can show it again in the settings.
+  Setting page includes status visibility, safe URL apply, reconnect control, and advanced stream options.
 
-  <div align="center">
-    <img src="images/show_livecaptions.png" alt="LiveCaptions Show/Hide button" width="90%" />
-    <br>
-    <em style="font-size:80%">LiveCaptions Show/Hide button</em>
-    <br>
-  </div>
+- **🧠 Whisper Bridge Input (single interface)**
 
-  By enabling the ***Include microphone audio*** option in the setting of Windows LiveCaptions, you can achieve real-time speech translation!
-  > ⚠️ **IMPORTANT:** You must change the source language in Windows LiveCaptions!
+  This build keeps a single ASR input path through a local WebSocket bridge, designed for WhisperLive-style streaming backends.
 
-- **🧠 Switchable ASR Source (MVP)**
-
-  The input speech-recognition path is now configurable in Settings:
-
-  - **Windows Live Captions**: original built-in path (UIA based).
-  - **Whisper Bridge**: connect to a local WebSocket bridge (recommended for WhisperLive-style streaming backends).
-
-  This keeps the existing translation APIs and UI/UX while allowing better ASR quality paths for Japanese livestream scenarios.
+  The app keeps existing translation APIs and display UX while offloading ASR orchestration to your external control frontend.
 
 - **🎨 Modern Interface**
 
@@ -146,12 +133,12 @@ Windows' built-in LiveCaptions is easy to use, uses few resources, and has extre
 
 | Requirement                                                                                                           | Details                                     |
 |-----------------------------------------------------------------------------------------------------------------------|---------------------------------------------|
-| <img src="https://img.shields.io/badge/Windows-11%20(22H2+)-0078D6?style=for-the-badge&logo=windows&logoColor=white"> | With LiveCaptions support.                  |
+| <img src="https://img.shields.io/badge/Windows-11%20(22H2+)-0078D6?style=for-the-badge&logo=windows&logoColor=white"> | Desktop runtime environment.                |
 | <img src="https://img.shields.io/badge/.NET-8.0+-512BD4?style=for-the-badge&logo=dotnet&logoColor=white">             | Recommended. Not test in previous versions. |
 
 </div>
 
-This tool is based on Windows LiveCaptions, which is available since **Windows 11 22H2**.
+This tool is a Windows desktop app with Whisper Bridge input, tested on **Windows 11 22H2+**.
 
 We suggest you have **.NET runtime 8.0** or higher installed. If you are not available to install one, you can download the ***with runtime*** version but its size is bigger.
 
@@ -167,44 +154,33 @@ We suggest you have **.NET runtime 8.0** or higher installed. If you are not ava
 
 > ⚠️ **IMPORTANT:** You must complete the following steps before running LiveCaptions Translator for the first time.
 >
-> For detailed information, see Microsoft's guide on [Using live captions](https://support.microsoft.com/en-us/windows/use-live-captions-to-better-understand-audio-b52da59c-14b8-4031-aeeb-f6a47e6055df).
+> For bridge payload details, see protocol notes below.
 
-### Step 1: Verify Windows LiveCaptions Availability
+### Step 1: Start your bridge
 
-Confirm LiveCaptions is available on your system using any of these methods:
+Run your local ASR bridge service first (for example WhisperLiveKit runtime) and make sure it exposes a WebSocket endpoint.
 
-- Toggle **Live captions** in the quick settings
-- Press **Win + Ctrl + L**
-- Access via **Quick settings** > **Accessibility** > **Live captions**
-- Open **Start** > **All apps** > **Accessibility** > **Live captions**
-- Navigate to **Settings** > **Accessibility** > **Captions** and enable **Live captions**
+### Step 2: Configure bridge endpoint in app
 
-### Step 2: Configure LiveCaptions
+Open **Setting** page and set **Whisper Bridge URL** (default: `ws://127.0.0.1:8765/captions`).
 
-When you first start, Windows LiveCaptions will ask for your consent to process voice data on your device and prompt you to download language files to be used by on-device speech recognition.
+Click **Apply**. The app validates URL and probes connectivity before switching endpoint, with rollback protection when an active session is running.
 
-After launching Windows LiveCaptions, click the **⚙️ gear** icon to open the setting menu, then select **Position** > **Overlaid on screen**.
+### Step 3: Confirm runtime status
 
-> ⚠️ **VERY IMPORTANT!** Otherwise, a display bug will occur on the screen after hiding Windows LiveCaptions.
+Check bridge status in the setting page:
 
-<div align="center">
-  <img src="images/speech_recognition.png" alt="Items under speech recognition" width="80%" />
-  <br>
-  <em style="font-size:80%">Required speech recognition downloads</em>
-  <br>
-</div>
+- `Connected` means captions are flowing.
+- `Reconnecting` means bridge retries are in progress.
+- Use **Reconnect** after bridge restart or endpoint changes.
 
-After configuration, close Windows LiveCaptions and launch LiveCaptions Translator to start using it! 🎉
+After status is `Connected`, switch to Caption page and start using real-time translation! 🎉
 
-### Optional: Use Whisper Bridge ASR
+### Bridge Payload Protocol
 
-If you want to use Whisper-family streaming ASR, run a local bridge first. The bridge should push text updates to a WebSocket endpoint (default in app: `ws://127.0.0.1:8765/captions`).
+Your bridge should push text updates to a WebSocket endpoint (default in app: `ws://127.0.0.1:8765/captions`).
 
-Then in **Setting** page:
-
-1. Set **ASR Source** to `Whisper Bridge`.
-2. Set **Whisper Bridge URL** (default: `ws://127.0.0.1:8765/captions`).
-3. Optionally tune **Enable Partial** and **Reconnect (ms)**.
+Set **Whisper Bridge URL** in the Setting page (persisted in `setting.json` as `WhisperBridgeUrl`).
 
 #### Stable Bridge Protocol (v1)
 
