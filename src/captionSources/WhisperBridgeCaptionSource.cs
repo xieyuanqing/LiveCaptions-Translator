@@ -1,5 +1,6 @@
 using System.Net.WebSockets;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Channels;
 using System.IO;
 
@@ -201,6 +202,9 @@ namespace LiveCaptionsTranslator.captionSources
                 if (string.IsNullOrWhiteSpace(payload))
                     continue;
 
+                if (TryHandleBridgeStatusPayload(payload))
+                    continue;
+
                 var parsedUpdates = WhisperBridgeMessageParser.Parse(
                     payload,
                     ref fallbackSequence,
@@ -299,6 +303,72 @@ namespace LiveCaptionsTranslator.captionSources
         private static string CreateUtteranceId()
         {
             return "bridge-" + Guid.NewGuid().ToString("N");
+        }
+
+        private bool TryHandleBridgeStatusPayload(string payload)
+        {
+            try
+            {
+                using JsonDocument json = JsonDocument.Parse(payload);
+                JsonElement root = json.RootElement;
+                if (root.ValueKind != JsonValueKind.Object)
+                    return false;
+
+                if (!TryGetStringProperty(root, "type", out string type) ||
+                    !string.Equals(type, "bridge_status", StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+
+                TryGetStringProperty(root, "status", out string statusText);
+                TryGetStringProperty(root, "error", out string errorText);
+
+                BridgeConnectionState state = MapBridgeStatus(statusText);
+                string normalizedStatus = string.IsNullOrWhiteSpace(statusText) ? "unknown" : statusText.Trim();
+                string message = string.IsNullOrWhiteSpace(errorText)
+                    ? $"Bridge reported status: {normalizedStatus}."
+                    : $"Bridge reported {normalizedStatus}: {errorText.Trim()}";
+
+                EmitStatus(state, message, 0);
+                return true;
+            }
+            catch (JsonException)
+            {
+                return false;
+            }
+        }
+
+        private static BridgeConnectionState MapBridgeStatus(string status)
+        {
+            return (status ?? string.Empty).Trim().ToLowerInvariant() switch
+            {
+                "connected" => BridgeConnectionState.Connected,
+                "reconnecting" => BridgeConnectionState.Reconnecting,
+                "stopped" => BridgeConnectionState.Stopped,
+                "idle" => BridgeConnectionState.Idle,
+                _ => BridgeConnectionState.Error
+            };
+        }
+
+        private static bool TryGetStringProperty(JsonElement obj, string key, out string value)
+        {
+            foreach (JsonProperty property in obj.EnumerateObject())
+            {
+                if (!string.Equals(property.Name, key, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (property.Value.ValueKind == JsonValueKind.String)
+                {
+                    value = property.Value.GetString() ?? string.Empty;
+                    return true;
+                }
+
+                value = property.Value.ToString();
+                return !string.IsNullOrWhiteSpace(value);
+            }
+
+            value = string.Empty;
+            return false;
         }
 
         private void EmitStatus(BridgeConnectionState state, string message, int attempt)

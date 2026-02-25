@@ -103,6 +103,10 @@ namespace LiveCaptionsTranslator.captionSources
                     Timestamp = DateTimeOffset.UtcNow
                 });
             }
+            catch
+            {
+                // Ignore malformed payload edge cases to keep bridge connection stable.
+            }
 
             return updates;
         }
@@ -567,9 +571,16 @@ namespace LiveCaptionsTranslator.captionSources
 
         private static DateTimeOffset UnixToDateTimeOffset(long unixValue)
         {
-            if (unixValue > 10_000_000_000)
-                return DateTimeOffset.FromUnixTimeMilliseconds(unixValue);
-            return DateTimeOffset.FromUnixTimeSeconds(unixValue);
+            try
+            {
+                if (unixValue > 10_000_000_000)
+                    return DateTimeOffset.FromUnixTimeMilliseconds(unixValue);
+                return DateTimeOffset.FromUnixTimeSeconds(unixValue);
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                return DateTimeOffset.UtcNow;
+            }
         }
 
         private static bool IsFinalStatus(string status)

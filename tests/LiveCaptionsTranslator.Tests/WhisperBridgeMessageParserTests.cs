@@ -166,4 +166,43 @@ public class WhisperBridgeMessageParserTests
         Assert.Equal("fallback payload text", update.Text);
         Assert.False(update.IsFinal);
     }
+
+    [Fact]
+    public void Parse_BridgeStatusPayload_IgnoresControlMessage()
+    {
+        long fallbackSequence = 0;
+        string payload = """
+            {
+              "type": "bridge_status",
+              "status": "reconnecting",
+              "timestamp": "2026-02-25T04:00:00Z",
+              "error": "upstream disconnected"
+            }
+            """;
+
+        var updates = WhisperBridgeMessageParser.Parse(payload, ref fallbackSequence, CaptionSourceKinds.WhisperBridge);
+
+        Assert.Empty(updates);
+        Assert.Equal(0, fallbackSequence);
+    }
+
+    [Fact]
+    public void Parse_OversizedUnixTimestamp_StillParsesTextUpdate()
+    {
+        long fallbackSequence = 0;
+        string payload = """
+            {
+              "text": "timestamp overflow safe",
+              "timestamp": 999999999999999,
+              "isFinal": false
+            }
+            """;
+
+        var updates = WhisperBridgeMessageParser.Parse(payload, ref fallbackSequence, CaptionSourceKinds.WhisperBridge);
+
+        var update = Assert.Single(updates);
+        Assert.Equal("timestamp overflow safe", update.Text);
+        Assert.False(update.IsFinal);
+        Assert.Equal(1, update.Sequence);
+    }
 }
