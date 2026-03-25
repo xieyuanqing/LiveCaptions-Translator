@@ -247,6 +247,7 @@ namespace LiveCaptionsTranslator.captionSources
                 return false;
             }
 
+            int updatesBefore = updates.Count;
             string lastLineText = string.Empty;
             string utteranceId = string.Empty;
 
@@ -279,24 +280,50 @@ namespace LiveCaptionsTranslator.captionSources
                     ? transcriptionValue
                     : string.Empty;
 
-            string text = (lastLineText + bufferDiarization + bufferTranscription).Trim();
-            if (string.IsNullOrWhiteSpace(text))
-                return false;
+            string committedLine = lastLineText.Trim();
+            string trailingBuffer = (bufferDiarization + bufferTranscription).Trim();
 
-            fallbackSequence++;
-            updates.Add(new CaptionUpdate
+            if (!string.IsNullOrWhiteSpace(committedLine))
             {
-                Text = text,
-                IsFinal = false,
-                Sequence = fallbackSequence,
-                Source = source,
-                Timestamp = timestamp,
-                UtteranceId = string.IsNullOrWhiteSpace(utteranceId)
-                    ? "wlk-legacy"
-                    : utteranceId
-            });
+                fallbackSequence++;
+                updates.Add(new CaptionUpdate
+                {
+                    Text = committedLine,
+                    IsFinal = true,
+                    Sequence = fallbackSequence,
+                    Source = source,
+                    Timestamp = timestamp,
+                    UtteranceId = string.IsNullOrWhiteSpace(utteranceId)
+                        ? "wlk-line"
+                        : utteranceId
+                });
+            }
 
-            return true;
+            if (!string.IsNullOrWhiteSpace(trailingBuffer))
+            {
+                string partialText = string.IsNullOrWhiteSpace(committedLine)
+                    ? trailingBuffer
+                    : (committedLine + " " + trailingBuffer).Trim();
+
+                if (!string.IsNullOrWhiteSpace(partialText) &&
+                    !string.Equals(partialText, committedLine, StringComparison.Ordinal))
+                {
+                    fallbackSequence++;
+                    updates.Add(new CaptionUpdate
+                    {
+                        Text = partialText,
+                        IsFinal = false,
+                        Sequence = fallbackSequence,
+                        Source = source,
+                        Timestamp = timestamp,
+                        UtteranceId = string.IsNullOrWhiteSpace(utteranceId)
+                            ? "wlk-legacy"
+                            : utteranceId
+                    });
+                }
+            }
+
+            return updates.Count > updatesBefore;
         }
 
         private static bool TryReadNewApiSegments(

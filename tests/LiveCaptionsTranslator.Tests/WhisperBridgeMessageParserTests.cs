@@ -70,12 +70,22 @@ public class WhisperBridgeMessageParserTests
 
         var updates = WhisperBridgeMessageParser.Parse(payload, ref fallbackSequence, CaptionSourceKinds.WhisperBridge);
 
-        var update = Assert.Single(updates);
-        Assert.Equal("今日は 配信です", update.Text);
-        Assert.False(update.IsFinal);
-        Assert.Equal(1, update.Sequence);
-        Assert.Equal(CaptionSourceKinds.WhisperBridge, update.Source);
-        Assert.Equal("wlk-line-0-00-02", update.UtteranceId);
+        Assert.Equal(2, updates.Count);
+
+        var committed = updates[0];
+        Assert.Equal("今日は", committed.Text);
+        Assert.True(committed.IsFinal);
+        Assert.Equal(1, committed.Sequence);
+        Assert.Equal(CaptionSourceKinds.WhisperBridge, committed.Source);
+        Assert.Equal("wlk-line-0-00-02", committed.UtteranceId);
+
+        var partial = updates[1];
+        Assert.Equal("今日は 配信です", partial.Text);
+        Assert.False(partial.IsFinal);
+        Assert.Equal(2, partial.Sequence);
+        Assert.Equal(CaptionSourceKinds.WhisperBridge, partial.Source);
+        Assert.Equal("wlk-line-0-00-02", partial.UtteranceId);
+        Assert.Equal(2, fallbackSequence);
     }
 
     [Fact]

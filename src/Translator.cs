@@ -440,6 +440,7 @@ namespace LiveCaptionsTranslator
 
             whisperAggregator.EnablePartial = Setting.EnablePartial;
             whisperAggregator.IdleFinalizeMs = Math.Clamp(Setting.MaxIdleInterval * 25, 300, 10000);
+            whisperAggregator.SyncCommitThreshold = Math.Max(0, Setting.MaxSyncInterval);
 
             CaptionIncrementalResult result = whisperAggregator.Process(update);
             ApplyWhisperResult(result);
@@ -455,6 +456,7 @@ namespace LiveCaptionsTranslator
 
             whisperAggregator.EnablePartial = Setting.EnablePartial;
             whisperAggregator.IdleFinalizeMs = Math.Clamp(Setting.MaxIdleInterval * 25, 300, 10000);
+            whisperAggregator.SyncCommitThreshold = Math.Max(0, Setting.MaxSyncInterval);
 
             CaptionIncrementalResult result = whisperAggregator.FlushIfIdle(DateTimeOffset.UtcNow);
             ApplyWhisperResult(result);

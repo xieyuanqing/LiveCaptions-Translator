@@ -1,3 +1,5 @@
+using System.Text;
+
 using LiveCaptionsTranslator.utils;
 
 namespace LiveCaptionsTranslator.captionSources
@@ -12,10 +14,12 @@ namespace LiveCaptionsTranslator.captionSources
         private string lastCommittedText = string.Empty;
         private string lastDisplayText = string.Empty;
         private DateTimeOffset lastUpdateAt = DateTimeOffset.MinValue;
+        private int syncCount;
         private readonly Queue<string> pendingCommittedTexts = new();
 
         public bool EnablePartial { get; set; } = true;
         public int IdleFinalizeMs { get; set; } = 1200;
+        public int SyncCommitThreshold { get; set; } = 3;
 
         public void Reset()
         {
@@ -25,6 +29,7 @@ namespace LiveCaptionsTranslator.captionSources
             lastCommittedText = string.Empty;
             lastDisplayText = string.Empty;
             lastUpdateAt = DateTimeOffset.MinValue;
+            syncCount = 0;
             pendingCommittedTexts.Clear();
         }
 
@@ -49,14 +54,30 @@ namespace LiveCaptionsTranslator.captionSources
             if (!string.IsNullOrWhiteSpace(update.UtteranceId))
                 currentUtteranceId = update.UtteranceId;
 
+            bool textChanged = false;
             if (!string.IsNullOrWhiteSpace(incomingText))
             {
-                currentText = MergeWithOverlap(currentText, incomingText);
-                lastUpdateAt = updateTimestamp;
+                string mergedText = MergeWithOverlap(currentText, incomingText);
+                textChanged = string.CompareOrdinal(currentText, mergedText) != 0;
+                currentText = mergedText;
+                if (textChanged)
+                    lastUpdateAt = updateTimestamp;
             }
 
-            if (update.IsFinal || EndsWithTerminalPunctuation(currentText))
+            bool shouldCommit = update.IsFinal || EndsWithTerminalPunctuation(currentText);
+
+            if (!shouldCommit && textChanged && Encoding.UTF8.GetByteCount(currentText) >= TextUtil.SHORT_THRESHOLD)
+            {
+                syncCount++;
+                if (syncCount > Math.Max(0, SyncCommitThreshold))
+                    shouldCommit = true;
+            }
+
+            if (shouldCommit)
+            {
                 EnqueueCommitted(CommitBuffer());
+                syncCount = 0;
+            }
 
             return BuildResult();
         }
@@ -74,6 +95,7 @@ namespace LiveCaptionsTranslator.captionSources
                 return CaptionIncrementalResult.None;
 
             EnqueueCommitted(CommitBuffer());
+            syncCount = 0;
             return BuildResult();
         }
 
@@ -115,16 +137,34 @@ namespace LiveCaptionsTranslator.captionSources
 
             if (string.IsNullOrWhiteSpace(candidate))
                 return null;
-            if (string.CompareOrdinal(candidate, lastCommittedText) == 0)
+            if (IsNearDuplicateCommit(candidate, lastCommittedText))
                 return null;
-            if (!string.IsNullOrWhiteSpace(lastCommittedText) &&
-                TextUtil.Similarity(candidate, lastCommittedText) > 0.95)
-            {
-                return null;
-            }
 
             lastCommittedText = candidate;
             return candidate;
+        }
+
+        private static bool IsNearDuplicateCommit(string candidate, string previous)
+        {
+            if (string.IsNullOrWhiteSpace(previous))
+                return false;
+
+            if (string.CompareOrdinal(candidate, previous) == 0)
+                return true;
+
+            // Keep growing prefixes; suppress truncation rollbacks.
+            if (candidate.StartsWith(previous, StringComparison.Ordinal))
+                return false;
+            if (previous.StartsWith(candidate, StringComparison.Ordinal))
+                return true;
+
+            int maxLength = Math.Max(candidate.Length, previous.Length);
+            if (maxLength == 0)
+                return true;
+
+            int distance = TextUtil.LevenshteinDistance(candidate, previous);
+            double similarity = 1.0 - (double)distance / maxLength;
+            return similarity > 0.95;
         }
 
         private void EnqueueCommitted(string? committedText)
