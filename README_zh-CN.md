@@ -154,7 +154,7 @@ ASR 编排可以放在外部控制前端，本应用专注于字幕显示、翻�
 
 > ⚠️ **重要:** 首次运行LiveCaptions Translator前，您必须完成以下步骤。
 >
-> Bridge 消息格式请参考下方协议说明。
+> 跨仓库 Bridge 协议和默认端点的规范定义已经移到 `C:\Users\XYQ\whisper-stack\cross-repo-contracts.md`。下方内容只保留本应用的本地连接流程和兼容性说明。
 
 ### 步骤1: 启动 bridge 服务
 
@@ -178,35 +178,13 @@ ASR 编排可以放在外部控制前端，本应用专注于字幕显示、翻�
 
 ### Bridge 消息协议
 
-bridge 需要向 WebSocket 端点持续推送文本增量（应用默认地址：`ws://127.0.0.1:8765/captions`）。
+bridge 需要向 WebSocket 端点持续推送文本增量。本应用当前默认地址是 `ws://127.0.0.1:8765/captions`。
 
 可在设置页填写 **Whisper Bridge URL**（会持久化到 `setting.json` 的 `WhisperBridgeUrl` 字段）。
 
-#### Bridge 稳定协议（v1）
+Bridge 生产端的规范字段现在以 `C:\Users\XYQ\whisper-stack\cross-repo-contracts.md` 为准。
 
-推荐消息字段：
-
-- `text`（字符串）
-- `isFinal`（布尔）
-- `sequence`（数字）
-- `source`（字符串）
-- `timestamp`（ISO 8601 或 unix 毫秒/秒，可选）
-- `utteranceId`（字符串，可选）
-
-示例：
-
-```json
-{
-  "text": "こんにちは、配信を始めます",
-  "isFinal": false,
-  "sequence": 1024,
-  "source": "whisper-bridge",
-  "timestamp": "2026-02-21T12:34:56.789Z",
-  "utteranceId": "utt-9f8a"
-}
-```
-
-兼容说明：客户端对常见别名字段（如 `caption`、`transcript`、`final`、`seq`、`is_final` 等）做了容错，但仍建议 bridge 优先使用上面的稳定字段。
+兼容说明：客户端仍然会对常见别名字段做容错，例如 `caption`、`transcript`、`final`、`seq`、`is_final` 等，但 bridge 生产端应遵循共享标准中的规范契约。
 
 ## 项目统计
 

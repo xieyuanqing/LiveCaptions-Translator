@@ -154,7 +154,7 @@ We suggest you have **.NET runtime 8.0** or higher installed. If you are not ava
 
 > ⚠️ **IMPORTANT:** You must complete the following steps before running LiveCaptions Translator for the first time.
 >
-> For bridge payload details, see protocol notes below.
+> For the canonical cross-repo bridge contract and default endpoints, see `C:\Users\XYQ\whisper-stack\cross-repo-contracts.md`. The notes below only describe this app's local connection flow and compatibility behavior.
 
 ### Step 1: Start your bridge
 
@@ -178,35 +178,13 @@ After status is `Connected`, switch to Caption page and start using real-time tr
 
 ### Bridge Payload Protocol
 
-Your bridge should push text updates to a WebSocket endpoint (default in app: `ws://127.0.0.1:8765/captions`).
+Your bridge should push text updates to a WebSocket endpoint. This app currently defaults to `ws://127.0.0.1:8765/captions`.
 
 Set **Whisper Bridge URL** in the Setting page (persisted in `setting.json` as `WhisperBridgeUrl`).
 
-#### Stable Bridge Protocol (v1)
+The canonical producer-side bridge payload contract now lives in `C:\Users\XYQ\whisper-stack\cross-repo-contracts.md`.
 
-Preferred payload fields:
-
-- `text` (string)
-- `isFinal` (bool)
-- `sequence` (number)
-- `source` (string)
-- `timestamp` (ISO 8601 or unix ms/sec, optional)
-- `utteranceId` (string, optional)
-
-Example:
-
-```json
-{
-  "text": "こんにちは、配信を始めます",
-  "isFinal": false,
-  "sequence": 1024,
-  "source": "whisper-bridge",
-  "timestamp": "2026-02-21T12:34:56.789Z",
-  "utteranceId": "utt-9f8a"
-}
-```
-
-Compatibility note: the client has schema fallbacks for common alias keys (`caption`, `transcript`, `final`, `seq`, `is_final`, etc.), but bridge authors should still prefer the stable fields above.
+Compatibility note: this client still has schema fallbacks for common alias keys such as `caption`, `transcript`, `final`, `seq`, and `is_final`, but producer-side bridge authors should follow the canonical contract in the shared standard.
 
 ## Project Stats
 
